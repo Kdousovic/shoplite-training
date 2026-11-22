@@ -1,0 +1,65 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: ShopLite shared resources
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  Owner:
+    Type: String
+    Description: Shoplite project owner
+
+Resources:
+
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+
+      # Unique bucket name
+      BucketName: !Sub shoplite-${AWS::AccountId}-${AWS::Region}-${Environment}-artifacts
+
+      # Enable versioning
+      VersioningConfiguration:
+        Status: Enabled
+
+      # Encryption at rest
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+      # Block public access
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+      # Resource tags
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-artifacts
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+Outputs:
+
+  ArtifactsBucketName:
+    Description: Name of the ShopLite artifacts bucket
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub shoplite-${Environment}-ArtifactsBucketName
+
+  ArtifactsBucketArn:
+    Description: ARN of the ShopLite artifacts bucket
+    Value: !GetAtt ArtifactsBucket.Arn
+    Export:
+      Name: !Sub shoplite-${Environment}-ArtifactsBucketArn

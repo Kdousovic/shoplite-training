@@ -1,0 +1,250 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: ShopLite network infrastructure
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  Owner:
+    Type: String
+    Description: Shoplite project owner
+
+Resources:
+
+  # VPC
+  ShopLiteVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-vpc
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-igw
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-public-a
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-public-b
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # Private subnets
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-private-a
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      CidrBlock: 10.0.12.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-private-b
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # Public route table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-public-rt
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # NAT Gateway
+  NatEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachInternetGateway
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-nat-eip
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-nat
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # Private route tables
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-private-a-rt
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ShopLiteVPC
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-private-b-rt
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  PrivateRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+Outputs:
+
+  VpcId:
+    Description: ShopLite VPC ID
+    Value: !Ref ShopLiteVPC
+    Export:
+      Name: !Sub shoplite-${Environment}-VpcId
+
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub shoplite-${Environment}-PublicSubnetA
+
+  PublicSubnetB:
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub shoplite-${Environment}-PublicSubnetB
+
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub shoplite-${Environment}-PrivateSubnetA
+
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub shoplite-${Environment}-PrivateSubnetB
