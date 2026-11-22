@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopLite - Online Store</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <h1>ShopLite</h1>
+        <div class="cart">🛒 Cart: {{ cart_count }}</div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h2>Welcome to ShopLite</h2>
+            <p>Discover our latest tech products.</p>
+        </section>
+
+        <section class="products">
+            {% for product in products %}
+            <article class="product">
+                <div class="emoji">{{ product.emoji }}</div>
+                <h3>{{ product.name }}</h3>
+                <p class="price">${{ "%.2f"|format(product.price) }}</p>
+
+                <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST">
+                    <button type="submit">Add to cart</button>
+                </form>
+            </article>
+            {% endfor %}
+        </section>
+    </main>
+
+    <footer>
+        <p>ShopLite &copy; 2026 - DevOps Training Project</p>
+    </footer>
+
+</body>
+</html>
