@@ -108,6 +108,37 @@ Resources:
                   Fn::ImportValue:
                     Fn::Sub: shoplite-${Environment}-ArtifactsBucketArn
 
+        - PolicyName: ShopLiteSecretReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                # The trailing -* covers the 6 random characters Secrets Manager appends to the ARN
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:shoplite/${Environment}/web/flask-secret-key-*
+
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # Service role assumed by CodeDeploy
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
       Tags:
         - Key: Project
           Value: shoplite
@@ -298,7 +329,46 @@ Resources:
         PauseTime: PT5M
         WaitOnResourceSignals: false
 
+  # CodeDeploy application
+  WebApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub shoplite-${Environment}-web
+      ComputePlatform: Server
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # CodeDeploy deployment group (in-place, behind the ALB)
+  WebDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref WebApplication
+      DeploymentGroupName: !Sub shoplite-${Environment}-web-dg
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      AutoScalingGroups:
+        - !Ref ShopLiteASG
+      DeploymentConfigName: CodeDeployDefault.OneAtATime
+      DeploymentStyle:
+        DeploymentType: IN_PLACE
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          - Name: !GetAtt ShopLiteTargetGroup.TargetGroupName
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+
 Outputs:
+
+  CodeDeployApplicationName:
+    Value: !Ref WebApplication
+
+  CodeDeployDeploymentGroupName:
+    Value: !Ref WebDeploymentGroup
 
   LoadBalancerDNS:
     Description: ShopLite application URL
