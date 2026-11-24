@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install -r web/requirements.txt -r web/requirements-dev.txt
+  build:
+    commands:
+      - cd web
+      - flake8 --exclude .venv .
+      - FLASK_SECRET_KEY=test pytest tests --junitxml=../reports/junit.xml
+
+reports:
+  web-tests:
+    base-directory: reports
+    files:
+      - junit.xml
+    file-format: JUNITXML
+
+artifacts:
+  base-directory: web
+  files:
+    - '**/*'
