@@ -1,7 +1,7 @@
 import os
 import sys
 
-os.environ.setdefault("FLASK_SECRET_KEY", "test")
+os.environ.setdefault("FLASK_SECRET_KEY", "testing-secret-key")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest  # noqa: E402
