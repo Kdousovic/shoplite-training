@@ -18,7 +18,7 @@ Parameters:
     Type: String
     Description: ARN of the CodeStar/CodeConnections connection to GitHub (shoplite-github)
 
-  GitHubRepository:
+  FullRepositoryId:
     Type: String
     Description: Full repository id of your fork, e.g. my-user/shoplite
 
@@ -238,7 +238,7 @@ Resources:
                 Version: '1'
               Configuration:
                 ConnectionArn: !Ref ConnectionArn
-                FullRepositoryId: !Ref GitHubRepository
+                FullRepositoryId: !Ref FullRepositoryId
                 BranchName: !Ref BranchName
                 DetectChanges: false
               OutputArtifacts:
