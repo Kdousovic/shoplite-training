@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: ShopLite ECR repositories
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  Owner:
+    Type: String
+    Description: Shoplite project owner
+
+Resources:
+
+  CatalogRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub shoplite-${Environment}-catalog
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {"rules": [{"rulePriority": 1,
+            "description": "Garder les 10 dernières images",
+            "selection": {"tagStatus": "any", "countType":
+              "imageCountMoreThan", "countNumber": 10},
+            "action": {"type": "expire"}}]}
+      Tags:
+        - Key: Name
+          Value: !Sub shoplite-${Environment}-catalog
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  RegistryScanning:
+    Type: AWS::ECR::RegistryScanningConfiguration
+    Properties:
+      ScanType: BASIC
+      Rules:
+        - ScanFrequency: SCAN_ON_PUSH
+          RepositoryFilters:
+            - Filter: shoplite-*
+              FilterType: WILDCARD
+
+Outputs:
+
+  CatalogRepositoryUri:
+    Description: URI of the catalog ECR repository
+    Value: !GetAtt CatalogRepository.RepositoryUri
+    Export:
+      Name: !Sub shoplite-${Environment}-CatalogRepositoryUri

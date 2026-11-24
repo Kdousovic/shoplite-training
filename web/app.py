@@ -1,4 +1,6 @@
+import json
 import os
+import urllib.request
 
 from flask import Flask, render_template, redirect, url_for, session
 
@@ -14,17 +16,29 @@ PRODUCTS = [
 ]
 
 
+def get_products():
+    # Use catalog API if configured, else fall back to local list
+    url = os.environ.get("CATALOG_API_URL")
+    if not url:
+        return PRODUCTS
+    try:
+        with urllib.request.urlopen(url.rstrip("/") + "/products", timeout=3) as r:
+            return json.load(r)
+    except Exception:
+        return PRODUCTS
+
+
 @app.route("/")
 def index():
     cart = session.get("cart", [])
     return render_template(
-        "index.html", products=PRODUCTS, cart_count=len(cart)
+        "index.html", products=get_products(), cart_count=len(cart)
     )
 
 
 @app.route("/cart/add/<int:product_id>", methods=["POST"])
 def add_to_cart(product_id):
-    if any(p["id"] == product_id for p in PRODUCTS):
+    if any(p["id"] == product_id for p in get_products()):
         cart = session.get("cart", [])
         cart.append(product_id)
         session["cart"] = cart
