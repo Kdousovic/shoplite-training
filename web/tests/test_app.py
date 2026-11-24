@@ -18,7 +18,7 @@ def client():
 
 def test_index_returns_200(client):
     response = client.get("/")
-    assert response.status_code == 404  # TEMP: failing on purpose
+    assert response.status_code == 200
 
 
 def test_add_to_cart_increments_counter(client):
