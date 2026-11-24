@@ -242,9 +242,14 @@ Resources:
       TargetType: instance
       HealthCheckProtocol: HTTP
       HealthCheckPath: /
-      HealthCheckIntervalSeconds: 30
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      # Shorten the default 300s drain so CodeDeploy's BlockTraffic step and instance removal finish faster
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
       Matcher:
         HttpCode: '200'
       Tags:

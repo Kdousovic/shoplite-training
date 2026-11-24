@@ -1,7 +1,9 @@
+import os
+
 from flask import Flask, render_template, redirect, url_for, session
 
 app = Flask(__name__)
-app.secret_key = "shoplite-dev-secret-key"
+app.secret_key = os.environ["FLASK_SECRET_KEY"]
 
 # Initial product catalogue (part of the monolith)
 PRODUCTS = [

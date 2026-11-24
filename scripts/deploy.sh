@@ -8,6 +8,11 @@ ENVIRONMENT="dev"
 
 echo "=== Deploying ShopLite infrastructure ==="
 
+if ! aws secretsmanager describe-secret     --secret-id "shoplite/$ENVIRONMENT/web/flask-secret-key"     --profile $PROFILE --region $REGION > /dev/null 2>&1; then
+  echo "WARNING: secret shoplite/$ENVIRONMENT/web/flask-secret-key not found."
+  echo "         Create it in Secrets Manager before deploying the application."
+fi
+
 echo "1. Deploying network..."
 aws cloudformation deploy \
   --template-file infra/network.yaml \
@@ -34,3 +39,7 @@ aws cloudformation deploy \
   --profile $PROFILE --region $REGION
 
 echo "=== ShopLite infrastructure deployed successfully! ==="
+echo
+aws cloudformation describe-stacks --stack-name shoplite-app-ec2   --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" --output table   --profile $PROFILE --region $REGION
+aws cloudformation describe-stacks --stack-name shoplite-shared   --query "Stacks[0].Outputs[?OutputKey=='ArtifactsBucketName'].[OutputKey,OutputValue]" --output table   --profile $PROFILE --region $REGION
+echo "Next: upload your bundle to the artifacts bucket and run 'aws deploy create-deployment' manually."
