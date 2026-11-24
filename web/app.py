@@ -17,7 +17,9 @@ PRODUCTS = [
 @app.route("/")
 def index():
     cart = session.get("cart", [])
-    return render_template("index.html", products=PRODUCTS, cart_count=len(cart))
+    return render_template(
+        "index.html", products=PRODUCTS, cart_count=len(cart)
+    )
 
 
 @app.route("/cart/add/<int:product_id>", methods=["POST"])
