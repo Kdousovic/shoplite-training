@@ -1,7 +1,7 @@
 import os
 import sys
 
-os.environ.setdefault("FLASK_SECRET_KEY", "testing-secret-key")
+os.environ.setdefault("FLASK_SECRET_KEY", "test")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest  # noqa: E402
@@ -18,7 +18,7 @@ def client():
 
 def test_index_returns_200(client):
     response = client.get("/")
-    assert response.status_code == 200
+    assert response.status_code == 404  # TEMP: failing on purpose
 
 
 def test_add_to_cart_increments_counter(client):
