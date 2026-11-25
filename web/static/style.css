@@ -79,3 +79,9 @@ footer {
     padding: 25px;
     color: #64748b;
 }
+.reviews {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: #475569;
+    text-align: left;
+}
