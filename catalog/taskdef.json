@@ -1,0 +1,34 @@
+{
+  "family": "shoplite-__ENVIRONMENT__-catalog",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "__EXECUTION_ROLE_ARN__",
+  "containerDefinitions": [
+    {
+      "name": "catalog",
+      "image": "<IMAGE1_NAME>",
+      "essential": true,
+      "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
+      "secrets": [
+        {
+          "name": "PAGE_SIZE",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/shoplite/__ENVIRONMENT__/catalog/page-size"
+        },
+        {
+          "name": "API_TOKEN",
+          "valueFrom": "__API_TOKEN_SECRET_ARN__"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/shoplite/__ENVIRONMENT__/catalog",
+          "awslogs-region": "__REGION__",
+          "awslogs-stream-prefix": "catalog"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,291 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: ShopLite catalog CI/CD pipeline (Source -> Build -> blue/green Deploy)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  Owner:
+    Type: String
+    Description: Shoplite project owner
+
+  ConnectionArn:
+    Type: String
+    Description: ARN of the CodeStar/CodeConnections connection to GitHub
+
+  FullRepositoryId:
+    Type: String
+    Description: Full repository id of your fork, e.g. my-user/shoplite
+
+  BranchName:
+    Type: String
+    Default: main
+
+Resources:
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ShopLiteCatalogBuildAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-catalog-build*
+
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  Fn::Sub:
+                    - '${BucketArn}/*'
+                    - BucketArn:
+                        Fn::ImportValue:
+                          Fn::Sub: shoplite-${Environment}-ArtifactsBucketArn
+
+              # This action does not support resource-level permissions
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/shoplite-${Environment}-catalog
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  CatalogBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub shoplite-${Environment}-catalog-build
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: catalog/buildspec.yml
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        # Required to run the Docker daemon
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: REGISTRY
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          - Name: EXECUTION_ROLE_ARN
+            Value:
+              Fn::ImportValue:
+                Fn::Sub: shoplite-${Environment}-CatalogExecutionRoleArn
+          - Name: API_TOKEN_SECRET_ARN
+            Value:
+              Fn::ImportValue:
+                Fn::Sub: shoplite-${Environment}-CatalogApiTokenSecretArn
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ShopLiteCatalogPipelineAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource:
+                  Fn::Sub:
+                    - '${BucketArn}/*'
+                    - BucketArn:
+                        Fn::ImportValue:
+                          Fn::Sub: shoplite-${Environment}-ArtifactsBucketArn
+
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource:
+                  Fn::ImportValue:
+                    Fn::Sub: shoplite-${Environment}-ArtifactsBucketArn
+
+              - Effect: Allow
+                Action:
+                  - codeconnections:UseConnection
+                  - codestar-connections:UseConnection
+                Resource: !Ref ConnectionArn
+
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource: !GetAtt CatalogBuildProject.Arn
+
+              - Effect: Allow
+                Action:
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetApplication
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:RegisterApplicationRevision
+                Resource:
+                  - !Sub arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:application:shoplite-${Environment}-catalog
+                  - !Sub arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:shoplite-${Environment}-catalog/shoplite-${Environment}-catalog-dg
+
+              - Effect: Allow
+                Action:
+                  - codedeploy:GetDeploymentConfig
+                Resource: !Sub arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentconfig:*
+
+              # This action does not support resource-level permissions
+              - Effect: Allow
+                Action:
+                  - ecs:RegisterTaskDefinition
+                Resource: '*'
+
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  Fn::ImportValue:
+                    Fn::Sub: shoplite-${Environment}-CatalogExecutionRoleArn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  CatalogPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub shoplite-${Environment}-catalog-pipeline
+      PipelineType: V2
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location:
+          Fn::ImportValue:
+            Fn::Sub: shoplite-${Environment}-ArtifactsBucketName
+
+      # Only react to pushes on the branch that touch catalog/
+      Triggers:
+        - ProviderType: CodeStarSourceConnection
+          GitConfiguration:
+            SourceActionName: Source
+            Push:
+              - Branches:
+                  Includes:
+                    - !Ref BranchName
+                FilePaths:
+                  Includes:
+                    - 'catalog/**'
+
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref ConnectionArn
+                FullRepositoryId: !Ref FullRepositoryId
+                BranchName: !Ref BranchName
+                DetectChanges: false
+              OutputArtifacts:
+                - Name: SourceOutput
+
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CatalogBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CodeDeployToECS
+                Version: '1'
+              Configuration:
+                ApplicationName: !Sub shoplite-${Environment}-catalog
+                DeploymentGroupName: !Sub shoplite-${Environment}-catalog-dg
+                TaskDefinitionTemplateArtifact: BuildOutput
+                TaskDefinitionTemplatePath: taskdef.json
+                AppSpecTemplateArtifact: BuildOutput
+                AppSpecTemplatePath: appspec.yaml
+                Image1ArtifactName: BuildOutput
+                Image1ContainerName: IMAGE1_NAME
+              InputArtifacts:
+                - Name: BuildOutput
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+Outputs:
+
+  PipelineName:
+    Value: !Ref CatalogPipeline

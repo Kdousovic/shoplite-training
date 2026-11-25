@@ -40,6 +40,11 @@ Resources:
 
   LogGroup:
     Type: AWS::Logs::LogGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_158
+            comment: Logs chiffres par defaut par CloudWatch ; cle KMS hors perimetre du lab.
     Properties:
       LogGroupName: !Sub /shoplite/${Environment}/catalog
       RetentionInDays: 14
@@ -383,3 +388,13 @@ Outputs:
 
   CodeDeployDeploymentGroupName:
     Value: !Ref DeploymentGroup
+
+  TaskExecutionRoleArn:
+    Value: !GetAtt TaskExecutionRole.Arn
+    Export:
+      Name: !Sub shoplite-${Environment}-CatalogExecutionRoleArn
+
+  ApiTokenSecretArn:
+    Value: !Ref ApiTokenSecretArn
+    Export:
+      Name: !Sub shoplite-${Environment}-CatalogApiTokenSecretArn

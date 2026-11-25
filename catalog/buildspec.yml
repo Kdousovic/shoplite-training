@@ -1,0 +1,30 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+  build:
+    commands:
+      - TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-7)-$CODEBUILD_BUILD_NUMBER
+      - docker build -t $REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG catalog/
+      - docker push $REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG
+      - printf '{"ImageURI":"%s"}' $REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG > imageDetail.json
+  post_build:
+    commands:
+      # Fill the account-specific values of the task definition template
+      - >
+        sed -i
+        -e "s|__ENVIRONMENT__|$ENVIRONMENT|g"
+        -e "s|__REGION__|$AWS_REGION|g"
+        -e "s|__ACCOUNT_ID__|$ACCOUNT_ID|g"
+        -e "s|__EXECUTION_ROLE_ARN__|$EXECUTION_ROLE_ARN|g"
+        -e "s|__API_TOKEN_SECRET_ARN__|$API_TOKEN_SECRET_ARN|g"
+        catalog/taskdef.json
+
+artifacts:
+  discard-paths: yes
+  files:
+    - imageDetail.json
+    - catalog/appspec.yaml
+    - catalog/taskdef.json
