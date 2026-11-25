@@ -22,14 +22,15 @@ def get_products():
     if not url:
         return PRODUCTS
     try:
-        with urllib.request.urlopen(url.rstrip("/") + "/products", timeout=3) as r:
+        products_url = url.rstrip("/") + "/products"
+        with urllib.request.urlopen(products_url, timeout=3) as r:
             return json.load(r)
     except Exception:
         return PRODUCTS
 
 
 def get_reviews(product_id):
-    # Returns None when the reviews API is unset or unreachable (section hidden)
+    # None when the reviews API is unset or unreachable: section hidden
     url = os.environ.get("REVIEWS_API_URL")
     if not url:
         return None
