@@ -29,6 +29,18 @@
                 <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST">
                     <button type="submit">Add to cart</button>
                 </form>
+
+                {% set rv = reviews.get(product.id) %}
+                {% if rv is not none %}
+                <div class="reviews">
+                    <h4>Reviews</h4>
+                    {% for r in rv %}
+                    <p>{{ "★" * (r.rating|int) }} {{ r.comment }}</p>
+                    {% else %}
+                    <p>No reviews yet.</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </article>
             {% endfor %}
         </section>

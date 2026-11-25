@@ -28,11 +28,27 @@ def get_products():
         return PRODUCTS
 
 
+def get_reviews(product_id):
+    # Returns None when the reviews API is unset or unreachable (section hidden)
+    url = os.environ.get("REVIEWS_API_URL")
+    if not url:
+        return None
+    try:
+        with urllib.request.urlopen(
+            f"{url.rstrip('/')}/reviews?productId={product_id}", timeout=2
+        ) as r:
+            return json.load(r)
+    except Exception:
+        return None
+
+
 @app.route("/")
 def index():
     cart = session.get("cart", [])
+    products = get_products()
+    reviews = {p["id"]: get_reviews(p["id"]) for p in products}
     return render_template(
-        "index.html", products=get_products(), cart_count=len(cart)
+        "index.html", products=products, reviews=reviews, cart_count=len(cart)
     )
 
 

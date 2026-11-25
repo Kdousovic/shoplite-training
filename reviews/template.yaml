@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ShopLite reviews service (serverless)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+  Owner:
+    Type: String
+    Default: Walid
+
+Globals:
+  Function:
+    Runtime: python3.12
+    CodeUri: src/
+    Timeout: 10
+    MemorySize: 128
+    Tags:
+      Environment: !Ref Environment
+      Owner: !Ref Owner
+
+Resources:
+  ReviewsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub shoplite-${Environment}-reviews
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: productId, AttributeType: S }
+        - { AttributeName: reviewId, AttributeType: S }
+      KeySchema:
+        - { AttributeName: productId, KeyType: HASH }
+        - { AttributeName: reviewId, KeyType: RANGE }
+
+  GetReviewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub shoplite-${Environment}-reviews-get
+      Handler: app.get_reviews
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ReviewsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ReviewsTable
+      Events:
+        Api:
+          Type: Api
+          Properties: { Path: /reviews, Method: get }
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref ReviewsErrorsAlarm
+        Hooks:
+          PreTraffic: !Ref SmokeFunction
+
+  PostReviewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub shoplite-${Environment}-reviews-post
+      Handler: app.post_review
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ReviewsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReviewsTable
+      Events:
+        Api:
+          Type: Api
+          Properties: { Path: /reviews, Method: post }
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref ReviewsErrorsAlarm
+        Hooks:
+          PreTraffic: !Ref SmokeFunction
+
+  SmokeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub CodeDeployHook_shoplite-${Environment}-reviews-smoke
+      Handler: smoke.handler
+      Environment:
+        Variables:
+          TARGET_FUNCTION: !Ref GetReviewsFunction.Version
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: codedeploy:PutLifecycleEventHookExecutionStatus
+              Resource: '*'
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Ref GetReviewsFunction.Version
+
+  ReviewsErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub shoplite-${Environment}-reviews-errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub shoplite-${Environment}-reviews-get
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  ApiUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /shoplite/${Environment}/reviews/api-url
+      Type: String
+      Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod

@@ -118,6 +118,15 @@ Resources:
                 # The trailing -* covers the 6 random characters Secrets Manager appends to the ARN
                 Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:shoplite/${Environment}/web/flask-secret-key-*
 
+        - PolicyName: ShopLiteReviewsParameterRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/shoplite/${Environment}/reviews/*
+
       Tags:
         - Key: Project
           Value: shoplite
