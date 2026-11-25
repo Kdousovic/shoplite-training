@@ -21,6 +21,8 @@ Resources:
     Properties:
       RepositoryName: !Sub shoplite-${Environment}-catalog
       ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
       LifecyclePolicy:
         LifecyclePolicyText: |
           {"rules": [{"rulePriority": 1,

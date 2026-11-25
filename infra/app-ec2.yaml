@@ -34,7 +34,8 @@ Resources:
         Fn::ImportValue:
           Fn::Sub: shoplite-${Environment}-VpcId
       SecurityGroupIngress:
-        - IpProtocol: tcp
+        - Description: HTTP from the internet (lab has no certificate)
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
@@ -55,7 +56,8 @@ Resources:
         Fn::ImportValue:
           Fn::Sub: shoplite-${Environment}-VpcId
       SecurityGroupIngress:
-        - IpProtocol: tcp
+        - Description: HTTP from the ALB only
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId: !Ref ALBSecurityGroup
@@ -284,6 +286,10 @@ Resources:
 
       SecurityGroups:
         - !Ref ALBSecurityGroup
+
+      LoadBalancerAttributes:
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: 'true'
 
       Tags:
         - Key: Project
