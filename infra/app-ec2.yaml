@@ -388,6 +388,12 @@ Outputs:
     Description: ShopLite application URL
     Value: !GetAtt ShopLiteALB.DNSName
 
+  AlbDnsName:
+    Description: ALB DNS name, used by the integration tests
+    Value: !GetAtt ShopLiteALB.DNSName
+    Export:
+      Name: !Sub shoplite-${Environment}AlbDnsName
+
   AutoScalingGroupName:
     Value: !Ref ShopLiteASG
 

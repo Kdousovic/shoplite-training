@@ -71,7 +71,9 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-web-build*
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-web-build*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-web-integration*
 
               - Effect: Allow
                 Action:
@@ -101,6 +103,36 @@ Resources:
                   - codebuild:UpdateReport
                   - codebuild:BatchPutTestCases
                 Resource: !Sub arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/shoplite-${Environment}-web-build-*
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # CodeBuild project: integration tests against the deployed ALB
+  WebIntegrationProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub shoplite-${Environment}-web-integration
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: web/buildspec-integration.yml
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - Name: BASE_URL
+            Type: PLAINTEXT
+            Value:
+              Fn::Sub:
+                - http://${AlbDns}
+                - AlbDns:
+                    Fn::ImportValue:
+                      Fn::Sub: shoplite-${Environment}AlbDnsName
       Tags:
         - Key: Project
           Value: shoplite
@@ -175,7 +207,9 @@ Resources:
                 Action:
                   - codebuild:StartBuild
                   - codebuild:BatchGetBuilds
-                Resource: !GetAtt WebBuildProject.Arn
+                Resource:
+                  - !GetAtt WebBuildProject.Arn
+                  - !GetAtt WebIntegrationProject.Arn
 
               - Effect: Allow
                 Action:
@@ -284,6 +318,19 @@ Resources:
                 DeploymentGroupName: !Sub shoplite-${Environment}-web-dg
               InputArtifacts:
                 - Name: BuildOutput
+
+        - Name: IntegrationTest
+          Actions:
+            - Name: IntegrationTest
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref WebIntegrationProject
+              InputArtifacts:
+                - Name: SourceOutput
       Tags:
         - Key: Project
           Value: shoplite
@@ -300,3 +347,6 @@ Outputs:
 
   CodeBuildProjectName:
     Value: !Ref WebBuildProject
+
+  IntegrationProjectName:
+    Value: !Ref WebIntegrationProject

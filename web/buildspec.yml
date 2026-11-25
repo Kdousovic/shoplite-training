@@ -10,7 +10,7 @@ phases:
     commands:
       - cd web
       - flake8 --exclude .venv .
-      - FLASK_SECRET_KEY=test pytest tests --junitxml=../reports/junit.xml
+      - FLASK_SECRET_KEY=test pytest tests --junitxml=../reports/junit.xml --cov=app --cov-report=xml:../reports/coverage.xml --cov-report=term
 
 reports:
   web-tests:
@@ -18,6 +18,11 @@ reports:
     files:
       - junit.xml
     file-format: JUNITXML
+  web-coverage:
+    base-directory: reports
+    files:
+      - coverage.xml
+    file-format: COBERTURAXML
 
 artifacts:
   base-directory: web
