@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify
 
 app = Flask(__name__)
@@ -12,7 +14,8 @@ PRODUCTS = [
 
 @app.route("/products")
 def products():
-    return jsonify(PRODUCTS)
+    page_size = int(os.environ.get("PAGE_SIZE", "10"))
+    return jsonify(PRODUCTS[:page_size])
 
 
 if __name__ == "__main__":

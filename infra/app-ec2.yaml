@@ -129,6 +129,15 @@ Resources:
                   - ssm:GetParameter
                 Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/shoplite/${Environment}/reviews/*
 
+        - PolicyName: ShopLiteCatalogParameterRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/shoplite/${Environment}/catalog/api-url
+
       Tags:
         - Key: Project
           Value: shoplite
