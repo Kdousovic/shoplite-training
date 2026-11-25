@@ -102,6 +102,7 @@ Resources:
                   - codebuild:CreateReport
                   - codebuild:UpdateReport
                   - codebuild:BatchPutTestCases
+                  - codebuild:BatchPutCodeCoverages
                 Resource: !Sub arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/shoplite-${Environment}-web-build-*
       Tags:
         - Key: Project
