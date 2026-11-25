@@ -23,7 +23,8 @@ def get_products():
         return PRODUCTS
     try:
         products_url = url.rstrip("/") + "/products"
-        with urllib.request.urlopen(products_url, timeout=3) as r:
+        # URL from our own env var, not user input
+        with urllib.request.urlopen(products_url, timeout=3) as r:  # nosec
             return json.load(r)
     except Exception:
         return PRODUCTS
@@ -35,7 +36,8 @@ def get_reviews(product_id):
     if not url:
         return None
     try:
-        with urllib.request.urlopen(
+        # URL from our own env var, not user input
+        with urllib.request.urlopen(  # nosec
             f"{url.rstrip('/')}/reviews?productId={product_id}", timeout=2
         ) as r:
             return json.load(r)
@@ -64,4 +66,8 @@ def add_to_cart(product_id):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=os.environ.get("FLASK_DEBUG") == "1",
+    )

@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install cfn-lint checkov bandit pip-audit
+  build:
+    commands:
+      - cfn-lint infra/*.yaml
+      - checkov -d infra --framework cloudformation --quiet
+      - bandit -r web catalog -x "*/tests/*,*/tests_integration/*" -ll
+      - pip-audit -r web/requirements.txt

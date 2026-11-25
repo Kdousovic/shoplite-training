@@ -74,6 +74,7 @@ Resources:
                 Resource:
                   - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-web-build*
                   - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-web-integration*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/shoplite-${Environment}-security-scan*
 
               - Effect: Allow
                 Action:
@@ -104,6 +105,27 @@ Resources:
                   - codebuild:BatchPutTestCases
                   - codebuild:BatchPutCodeCoverages
                 Resource: !Sub arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/shoplite-${Environment}-web-build-*
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  # CodeBuild project: SAST, SCA and IaC scans of the source code
+  SecurityScanProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub shoplite-${Environment}-security-scan
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-security.yml
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
       Tags:
         - Key: Project
           Value: shoplite
@@ -211,6 +233,7 @@ Resources:
                 Resource:
                   - !GetAtt WebBuildProject.Arn
                   - !GetAtt WebIntegrationProject.Arn
+                  - !GetAtt SecurityScanProject.Arn
 
               - Effect: Allow
                 Action:
@@ -293,6 +316,19 @@ Resources:
                 - Name: SourceOutput
               OutputArtifacts:
                 - Name: BuildOutput
+
+        - Name: SecurityScan
+          Actions:
+            - Name: SecurityScan
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref SecurityScanProject
+              InputArtifacts:
+                - Name: SourceOutput
 
         - Name: Approval
           Actions:
