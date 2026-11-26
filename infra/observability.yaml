@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: ShopLite observability (e-mail alerts on pipeline failure, dashboard)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  Owner:
+    Type: String
+    Description: Shoplite project owner
+
+  AlertEmail:
+    Type: String
+    Description: E-mail address notified when a pipeline fails
+
+Resources:
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub shoplite-${Environment}-alerts
+      Tags:
+        - Key: Project
+          Value: shoplite
+        - Key: Owner
+          Value: !Ref Owner
+
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # Without this policy EventBridge cannot publish and no e-mail is sent
+  AlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref AlertTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AlertTopic
+
+  PipelineFailureRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub shoplite-${Environment}-pipeline-failed
+      Description: Any CodePipeline execution that fails
+      EventPattern:
+        source:
+          - aws.codepipeline
+        detail-type:
+          - CodePipeline Pipeline Execution State Change
+        detail:
+          state:
+            - FAILED
+      Targets:
+        - Id: alert-email
+          Arn: !Ref AlertTopic
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub shoplite-${Environment}
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "alarm", "x": 0, "y": 0, "width": 24, "height": 3,
+              "properties": {
+                "title": "Alarms",
+                "alarms": [
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:shoplite-${Environment}-web-5xx",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:shoplite-${Environment}-catalog-5xx",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:shoplite-${Environment}-reviews-errors"
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 3, "width": 12, "height": 6,
+              "properties": {
+                "title": "ALB requests", "region": "${AWS::Region}", "view": "timeSeries",
+                "metrics": [
+                  [ { "expression": "SEARCH('{AWS/ApplicationELB,LoadBalancer} MetricName=\"RequestCount\" shoplite', 'Sum', 60)", "id": "requests" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 3, "width": 12, "height": 6,
+              "properties": {
+                "title": "ALB 5xx", "region": "${AWS::Region}", "view": "timeSeries",
+                "metrics": [
+                  [ { "expression": "SEARCH('{AWS/ApplicationELB,LoadBalancer} MetricName=\"HTTPCode_Target_5XX_Count\" shoplite', 'Sum', 60)", "id": "errors" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 9, "width": 12, "height": 6,
+              "properties": {
+                "title": "ALB response time", "region": "${AWS::Region}", "view": "timeSeries",
+                "metrics": [
+                  [ { "expression": "SEARCH('{AWS/ApplicationELB,LoadBalancer} MetricName=\"TargetResponseTime\" shoplite', 'Average', 60)", "id": "latency" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 9, "width": 12, "height": 6,
+              "properties": {
+                "title": "Reviews Lambda", "region": "${AWS::Region}", "view": "timeSeries",
+                "stat": "Sum", "period": 60,
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "shoplite-${Environment}-reviews-get" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "shoplite-${Environment}-reviews-get" ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "shoplite-${Environment}-reviews-post" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "shoplite-${Environment}-reviews-post" ]
+                ]
+              }
+            }
+          ]
+        }
+
+Outputs:
+
+  AlertTopicArn:
+    Value: !Ref AlertTopic
