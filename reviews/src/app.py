@@ -1,4 +1,6 @@
+import functools
 import json
+import logging
 import os
 import time
 import uuid
@@ -7,6 +9,26 @@ from decimal import Decimal
 import boto3
 
 table = boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
+def logged(func):
+    @functools.wraps(func)
+    def wrapper(event, context):
+        # With LogFormat JSON, Lambda adds the "extra" keys to the JSON line
+        fields = {"route": "/reviews", "version": context.function_version}
+        try:
+            resp = func(event, context)
+        except Exception:
+            logger.exception("unhandled error", extra=fields)
+            raise
+        code = resp["statusCode"]
+        level = logging.ERROR if code >= 500 else logging.INFO
+        logger.log(level, "status %s", code, extra=fields)
+        return resp
+
+    return wrapper
 
 
 def _resp(code, body):
@@ -17,6 +39,7 @@ def _resp(code, body):
     }
 
 
+@logged
 def get_reviews(event, context):
     product_id = (event.get("queryStringParameters") or {}).get("productId")
     if not product_id:
@@ -27,6 +50,7 @@ def get_reviews(event, context):
     return _resp(200, res["Items"])
 
 
+@logged
 def post_review(event, context):
     try:
         data = json.loads(event.get("body") or "{}")

@@ -17,6 +17,8 @@ Globals:
     CodeUri: src/
     Timeout: 10
     MemorySize: 128
+    LoggingConfig:
+      LogFormat: JSON
     Tags:
       Environment: !Ref Environment
       Owner: !Ref Owner

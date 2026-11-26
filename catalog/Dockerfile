@@ -9,7 +9,9 @@ FROM public.ecr.aws/docker/library/python:3.12-slim
 WORKDIR /app
 COPY --from=build /install /usr/local
 COPY . .
+ARG APP_VERSION=unknown
+ENV APP_VERSION=$APP_VERSION
 RUN useradd --create-home appuser
 USER appuser
 EXPOSE 8080
-CMD ["gunicorn", "--access-logfile", "-", "--bind", "0.0.0.0:8080", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]

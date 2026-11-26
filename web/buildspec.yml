@@ -9,6 +9,7 @@ phases:
   build:
     commands:
       - cd web
+      - echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-7 > VERSION
       - flake8 --exclude .venv .
       - FLASK_SECRET_KEY=test pytest tests --junitxml=../reports/junit.xml --cov=app --cov-report=xml:../reports/coverage.xml --cov-report=term
 

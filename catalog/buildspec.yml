@@ -7,7 +7,7 @@ phases:
   build:
     commands:
       - TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-7)-$CODEBUILD_BUILD_NUMBER
-      - docker build -t $REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG catalog/
+      - docker build --build-arg APP_VERSION=$TAG -t$REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG catalog/
       - docker push $REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG
       - printf '{"ImageURI":"%s"}' $REGISTRY/shoplite-$ENVIRONMENT-catalog:$TAG > imageDetail.json
   post_build:

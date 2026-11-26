@@ -12,6 +12,9 @@ export REVIEWS_API_URL=$(aws ssm get-parameter   --name /shoplite/dev/reviews/ap
 
 export CATALOG_API_URL=$(aws ssm get-parameter --name /shoplite/dev/catalog/api-url --query Parameter.Value --output text --region us-east-1 || true)
 
+export APP_VERSION=$(cat "$APP_DIR/VERSION" 2>/dev/null || echo unknown)
+export LOG_FILE=/var/log/shoplite-app.log
+
 "$APP_DIR/.venv/bin/gunicorn" \
   --bind 127.0.0.1:5000 \
   --workers 2 \

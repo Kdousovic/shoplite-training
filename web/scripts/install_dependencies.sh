@@ -24,3 +24,7 @@ CONF
 rm -f /etc/httpd/conf.d/welcome.conf
 systemctl enable httpd
 systemctl reload httpd || systemctl restart httpd
+
+# Ship the application's JSON log to CloudWatch Logs
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s -c "file:$APP_DIR/cloudwatch-agent.json"
