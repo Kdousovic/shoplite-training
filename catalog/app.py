@@ -10,7 +10,7 @@ PRODUCTS = [
     {"id": 3, "name": "Smart Watch", "price": 129.99, "emoji": "⌚"},
     {"id": 4, "name": "USB-C Hub", "price": 34.99, "emoji": "🔌"},
     {"id": 5, "name": "Bluetooth Speaker", "price": 44.99, "emoji": "🔊"},
-
+    {"id": 6, "name": "Gaming Mouse", "price": 29.99, "emoji": "🖱️"},
 ]
 
 
