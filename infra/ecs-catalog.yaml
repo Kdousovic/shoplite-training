@@ -334,6 +334,23 @@ Resources:
         - Key: Owner
           Value: !Ref Owner
 
+  # 5xx answered by the catalog tasks (prod and test listeners)
+  Catalog5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub shoplite-${Environment}-catalog-5xx
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt LoadBalancer.LoadBalancerFullName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
   DeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
@@ -366,11 +383,16 @@ Resources:
         TerminateBlueInstancesOnDeploymentSuccess:
           Action: TERMINATE
           TerminationWaitTimeInMinutes: 5
+      AlarmConfiguration:
+        Enabled: true
+        Alarms:
+          - Name: !Ref Catalog5xxAlarm
       AutoRollbackConfiguration:
         Enabled: true
         Events:
           - DEPLOYMENT_FAILURE
           - DEPLOYMENT_STOP_ON_REQUEST
+          - DEPLOYMENT_STOP_ON_ALARM
 
 Outputs:
 

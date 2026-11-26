@@ -370,6 +370,23 @@ Resources:
         - Key: Owner
           Value: !Ref Owner
 
+  # 5xx answered by the web instances behind the ALB
+  Web5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub shoplite-${Environment}-web-5xx
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt ShopLiteALB.LoadBalancerFullName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
   # CodeDeploy deployment group (in-place, behind the ALB)
   WebDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
@@ -386,10 +403,15 @@ Resources:
       LoadBalancerInfo:
         TargetGroupInfoList:
           - Name: !GetAtt ShopLiteTargetGroup.TargetGroupName
+      AlarmConfiguration:
+        Enabled: true
+        Alarms:
+          - Name: !Ref Web5xxAlarm
       AutoRollbackConfiguration:
         Enabled: true
         Events:
           - DEPLOYMENT_FAILURE
+          - DEPLOYMENT_STOP_ON_ALARM
 
 Outputs:
 
