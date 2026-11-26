@@ -33,7 +33,10 @@ class JsonFormatter(logging.Formatter):
 
 # LOG_FILE is set on the server: the CloudWatch agent ships that file
 log_file = os.environ.get("LOG_FILE")
-handler = logging.FileHandler(log_file) if log_file else logging.StreamHandler()
+if log_file:
+    handler = logging.FileHandler(log_file)
+else:
+    handler = logging.StreamHandler()
 handler.setFormatter(JsonFormatter())
 app.logger.handlers = [handler]
 app.logger.setLevel(logging.INFO)
